@@ -1,0 +1,24 @@
+{
+  "name": "@hedgeflow/engine",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Rebalancing engine — deterministic workflow + advisory AI agent (Mastra).",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mastra/core": "^0.1.0",
+    "viem": "^2.21.0",
+    "zod": "^3.23.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.16.0",
+    "@types/node": "^20.14.0"
+  }
+}

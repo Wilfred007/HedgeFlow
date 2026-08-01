@@ -1,0 +1,10 @@
+{
+  "name": "hedgeflow",
+  "version": "0.0.1",
+  "private": true,
+  "description": "AI-assisted, cross-chain liquidity protection protocol for USDC.",
+  "workspaces": [
+    "engine",
+    "frontend"
+  ]
+}

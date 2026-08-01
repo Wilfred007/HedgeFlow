@@ -1,0 +1,9 @@
+{
+  "name": "@hedgeflow/frontend",
+  "version": "0.0.1",
+  "private": true,
+  "description": "User-facing layer — deposit + unified balance UX (PRD §6.4, milestone 4). Placeholder.",
+  "scripts": {
+    "dev": "echo 'TODO: scaffold Vite/Next app with wallet connect + Gateway/Paymaster SDK'"
+  }
+}
