@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+
+# engine decision log (FR-9) — local run artifact, not source
+engine/decisions.log

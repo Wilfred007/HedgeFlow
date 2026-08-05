@@ -8,6 +8,10 @@ export interface ChainConfig {
   rpcUrl: string;
   vaultAddress: `0x${string}` | null;
   usdcAddress: `0x${string}` | null;
+  /** CCTP V2 TokenMessengerV2 — burns USDC on this chain. Fill in from Circle's docs. */
+  tokenMessengerAddress: `0x${string}` | null;
+  /** CCTP V2 MessageTransmitterV2 — mints USDC on this chain via receiveMessage. Fill in from Circle's docs. */
+  messageTransmitterAddress: `0x${string}` | null;
 }
 
 export interface RebalanceDecision {

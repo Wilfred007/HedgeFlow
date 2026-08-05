@@ -80,20 +80,21 @@ flowchart TB
 ```
 HedgeFlow/
 ├── contracts/            Foundry project — one Vault per chain (PRD §6.1)
-│   ├── src/Vault.sol         placeholder contract, see TODOs inside
-│   ├── script/Deploy.s.sol   placeholder deploy script
-│   ├── test/Vault.t.sol      placeholder test
+│   ├── src/Vault.sol         controller-gated vault (FR-1..FR-4, FR-10) — implemented
+│   ├── script/Deploy.s.sol   deploys one Vault per chain, controller derived from CONTROLLER_PRIVATE_KEY
+│   ├── test/Vault.t.sol      access control, accounting, pause, event coverage
 │   └── foundry.toml
 ├── engine/                TypeScript rebalancing engine, built on Mastra (PRD §6.2, §6.3, §9)
 │   └── src/
 │       ├── config/chains.ts          MVP chain set (Ethereum/Arbitrum/Base Sepolia)
 │       ├── mastra/
-│       │   ├── workflows/            deterministic execution graph — FR-5..FR-9
-│       │   ├── agents/               advisory-only AI layer — FR-11..FR-14
-│       │   └── tools/                chain RPC, CCTP V2, Gateway wrappers
-│       ├── lib/logger.ts
+│       │   ├── workflows/rebalance.workflow.ts   deterministic execution graph — FR-5..FR-9, implemented
+│       │   ├── agents/               advisory-only AI layer — FR-11..FR-14, not yet built (milestone 3)
+│       │   └── tools/                thin Mastra wrappers over lib/chain-rpc.ts + lib/cctp.ts
+│       ├── lib/                      chain-rpc, cctp (burn/attest/mint), rebalance-math, decision-log, env, viem clients
 │       ├── types.ts
-│       └── index.ts                   entrypoint / poll loop
+│       ├── run-rebalance.ts           manual trigger (milestone 1) — `npm run rebalance`
+│       └── index.ts                   poll-loop entrypoint, still a placeholder (milestone 2)
 ├── frontend/               User-facing deposit + unified-balance UX (PRD §6.4) — milestone 4, placeholder
 ├── docs/
 │   └── PRD.md              full product requirements doc
@@ -103,7 +104,7 @@ HedgeFlow/
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 20+ and npm (workspaces are npm-based)
+- [Node.js](https://nodejs.org/) 22.13+ and npm (workspaces are npm-based) — required by `@mastra/core`
 - [Foundry](https://getfoundry.sh/) (`forge`, `cast`, `anvil`) for the contracts package
 - Testnet RPC access for the MVP chain set (Ethereum Sepolia, Arbitrum Sepolia, Base Sepolia) — Alchemy/Infura/etc.
 - A Circle developer account for CCTP V2 and Gateway API access
@@ -120,7 +121,7 @@ forge build
 forge test
 ```
 
-`src/Vault.sol` is currently an empty contract with a `TODO` list matching FR-1 through FR-4 and FR-10. `script/Deploy.s.sol` and `test/Vault.t.sol` are placeholders to fill in alongside it.
+`src/Vault.sol` implements controller-gated deposit/withdraw, a `balance()` read, events for every fund movement, and a pause switch (FR-1–4, FR-10). Custody model for this MVP is a single controller EOA — the same key as `CONTROLLER_PRIVATE_KEY` in the engine's env — with `setController` left in place so swapping to a Safe multisig at mainnet time (PRD §8) is a config change, not a redeploy. Run `forge script script/Deploy.s.sol --rpc-url <chain> --broadcast` per target chain with `CONTROLLER_PRIVATE_KEY` and `USDC_ADDRESS` set, then copy the logged vault address into `engine/src/config/chains.ts`.
 
 ### Engine
 
@@ -131,7 +132,11 @@ npm install
 npm run dev
 ```
 
-The engine currently just boots and logs a placeholder message. The real work is wiring up `src/mastra/tools/*` (chain RPC reads, CCTP burn/mint, Gateway queries), then `src/mastra/workflows/rebalance.workflow.ts` (the deterministic loop), then `src/mastra/agents/anomaly-agent.ts` (advisory layer) — in that order, per the [roadmap](#roadmap).
+The deterministic rebalance loop (FR-5..FR-9) is implemented: `npm run rebalance` runs it once against the configured chains — check balances, compute deltas against `MIN_RESERVE_RATIO`, burn via CCTP V2, poll Circle's attestation, mint on the destination chain, log the decision to `engine/decisions.log`. It no-ops cleanly if every chain is already within threshold. This is milestone 1's manual trigger, not the automated poll loop yet (`src/index.ts` — milestone 2).
+
+Before running it for real: deploy the vaults (see [Contracts](#contracts) above) and fill in every chain's `vaultAddress`, `usdcAddress`, `tokenMessengerAddress`, and `messageTransmitterAddress` in `src/config/chains.ts` — the CCTP V2 contract addresses came back as `null` scaffolding on purpose rather than guessed values; pull the current ones from Circle's CCTP V2 docs per chain. Same goes for the `maxFee`/`minFinalityThreshold`/attestation API defaults in `.env.example` — flagged inline in `lib/cctp.ts` as worth double-checking against Circle's current docs before a real run.
+
+`npm test` runs the unit-tested pieces (currently just the deterministic threshold/target-share math in `lib/rebalance-math.ts`); the chain-rpc and CCTP tools need a live testnet to exercise.
 
 ### Frontend
 
@@ -156,6 +161,8 @@ Contracts (`contracts/foundry.toml` reads these from your shell env when scripti
 |---|---|
 | `ETH_SEPOLIA_RPC_URL`, `ARB_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_RPC_URL` | Same RPC endpoints, used by `forge script` |
 | `ETHERSCAN_API_KEY`, `ARBISCAN_API_KEY`, `BASESCAN_API_KEY` | Contract verification |
+| `CONTROLLER_PRIVATE_KEY` | Broadcaster for `Deploy.s.sol`; its address becomes the deployed vault's controller |
+| `USDC_ADDRESS` | USDC token address on whichever chain `--rpc-url` targets (set per deploy, chain differs) |
 
 ## The fund-movement rule
 
@@ -176,7 +183,7 @@ Matches PRD §10:
 4. **User-facing layer** — Gateway + Paymaster wired into a real frontend.
 5. **Audit + mainnet** — third-party smart contract audit, then launch with capped real reserves.
 
-This scaffold is pre-milestone-1: structure and interfaces exist, none of the logic does yet.
+Status: vault contracts and the deterministic rebalance workflow (milestone 1) are implemented and unit-tested; not yet run against a live testnet deployment. The AI agent layer (milestone 3), the automated poll loop (milestone 2), and the frontend (milestone 4) are still scaffold-only.
 
 ## Open questions
 
